@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>상품 등록</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+      integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB"
+      crossorigin="anonymous"
+    />
+    <link href="main.css" rel="stylesheet" />
+  </head>
+  <body>
+    <nav class="navbar navbar-expand-lg bg-body-tertiary">
+      <div class="container-fluid">
+        <a class="navbar-brand" href="index.html">캠퍼스 마캣</a>
+        <button
+          class="navbar-toggler"
+          type="button"
+          data-bs-toggle="collapse"
+          data-bs-target="#navbarSupportedContent"
+        >
+          <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarSupportedContent">
+          <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+            <li class="nav-item">
+              <a class="nav-link" href="index.html">Home</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link active" href="upload.html">상품등록</a>
+            </li>
+          </ul>
+          
+          <div class="d-flex align-items-center">
+            <span class="ms-auto mx-2 fw-bold" id="userName"></span>
+            <button class="btn btn-sm btn-outline-secondary" id="logout" style="display:none;">로그아웃</button>
+          </div>
+        </div>
+      </div>
+    </nav>
+
+    <div class="container mt-3">
+      <input type="text" class="form-control mt-2" id="title" placeholder="상품명" />
+      <textarea class="form-control mt-2" id="content" placeholder="상품 설명"></textarea>
+      <input type="number" class="form-control mt-2" id="price" placeholder="가격 (숫자만 입력)" />
+      <input class="form-control mt-2" type="file" id="image" />
+      <button class="btn btn-danger mt-3" id="send">올리기</button>
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/8.6.5/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.6.5/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.6.5/firebase-firestore.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.6.5/firebase-storage.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    
+    <script>
+      const firebaseConfig = {
+        apiKey: "AIzaSyAjdtCBu54lACqJ2BaSmQWTNJYuYGho4O8",
+        authDomain: "campus-market-c68dd.firebaseapp.com",
+        projectId: "campus-market-c68dd",
+        storageBucket: "campus-market-c68dd.firebasestorage.app",
+        messagingSenderId: "470548217819",
+        appId: "1:470548217819:web:59a99f7ebb9e53ecf331fe",
+        measurementId: "G-0BKMHYKQVK",
+      };
+
+      if (!firebase.apps.length) {
+        firebase.initializeApp(firebaseConfig);
+      }
+
+      const db = firebase.firestore();
+      const storage = firebase.storage();
+
+      // 1. 로그인 상태 확인 (없으면 쫓아냄 + 있으면 이름 표시)
+      firebase.auth().onAuthStateChanged((user) => {
+        if (user) {
+          console.log("로그인 됨:", user.displayName);
+          $('#userName').html(user.displayName + '님');
+          $('#logout').show();
+        } else {
+          alert("로그인이 필요한 기능입니다.");
+          window.location.href = 'login.html';
+        }
+      });
+
+      // 로그아웃 버튼
+      $('#logout').click(function(){
+        firebase.auth().signOut().then(()=>{
+            window.location.href = 'index.html';
+        });
+      })
+
+      // 2. 업로드 기능
+      $("#send").click(function () {
+        var file = document.querySelector("#image").files[0];
+        
+        if (!file) {
+          alert("이미지 파일을 선택해주세요");
+          return;
+        }
+
+        // 현재 로그인한 유저 정보 가져오기 (가장 안전한 방법)
+        var user = firebase.auth().currentUser;
+        if (!user) {
+            alert("로그인 정보가 없습니다. 다시 로그인해주세요.");
+            return;
+        }
+
+        var storageRef = storage.ref();
+        var 저장할경로 = storageRef.child("image/" + file.name);
+
+        저장할경로.put(file).then(function (snapshot) {
+            snapshot.ref.getDownloadURL().then(function (downloadURL) {
+              
+              var 저장할거 = {
+                제목: $("#title").val(),
+                가격: Number($("#price").val()), // 숫자로 변환해서 저장 (중요!)
+                내용: $("#content").val(),
+                날짜: new Date(),
+                imageURL: downloadURL,
+                uid: JSON.parse(localStorage.getItem('user')).uid,
+                작성자이름: JSON.parse(localStorage.getItem('user')).displayName, // ★ 수정됨: '이름' -> '작성자이름' (detail.html과 통일)
+              };
+
+              db.collection("product").add(저장할거)
+                .then((result) => {
+                  console.log("업로드 성공");
+                  window.location.href = "/index.html";
+                })
+                .catch((err) => {
+                  console.error("DB 에러:", err);
+                  alert("업로드 실패: " + err.message);
+                });
+            });
+          })
+          .catch((err) => {
+            console.error("이미지 에러:", err);
+            alert("이미지 업로드 실패! 로그인이 풀렸거나 파일 문제일 수 있습니다.");
+          });
+      });
+    </script>
+  </body>
+</html>

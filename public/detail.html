@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>상세 페이지</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+      integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB"
+      crossorigin="anonymous"
+    />
+    <link href="main.css" rel="stylesheet" />
+  </head>
+  <body>
+    <nav class="navbar navbar-expand-lg bg-body-tertiary">
+      <div class="container-fluid">
+        <a class="navbar-brand" href="index.html">Campus Market</a>
+        <button
+          class="navbar-toggler"
+          type="button"
+          data-bs-toggle="collapse"
+          data-bs-target="#navbarSupportedContent"
+        >
+          <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarSupportedContent">
+          <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+            <li class="nav-item">
+              <a class="nav-link" href="index.html">Home</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="upload.html">상품등록</a>
+            </li>
+          </ul>
+          
+          <div class="d-flex align-items-center">
+            <span class="ms-auto mx-2 fw-bold" id="userName"></span>
+            <a href="login.html" class="btn btn-sm btn-outline-primary" id="login">로그인</a>
+            <button class="btn btn-sm btn-outline-secondary" id="logout" style="display:none;">로그아웃</button>
+          </div>
+
+        </div>
+      </div>
+    </nav>
+
+    <script src="https://www.gstatic.com/firebasejs/8.6.5/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.6.5/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.6.5/firebase-firestore.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.6.5/firebase-storage.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    
+    <script>
+      const firebaseConfig = {
+        apiKey: "AIzaSyAjdtCBu54lACqJ2BaSmQWTNJYuYGho4O8",
+        authDomain: "campus-market-c68dd.firebaseapp.com",
+        projectId: "campus-market-c68dd",
+        storageBucket: "campus-market-c68dd.firebasestorage.app",
+        messagingSenderId: "470548217819",
+        appId: "1:470548217819:web:59a99f7ebb9e53ecf331fe",
+        measurementId: "G-0BKMHYKQVK",
+      };
+
+      if (!firebase.apps.length) {
+          firebase.initializeApp(firebaseConfig);
+      }
+    </script>
+    
+    <div class="container mt-3">
+      <div class="detail-pic my-4" style="background-image: url('https://via.placeholder.com/400'); background-size: cover; background-position: center; height: 300px;"></div>
+      
+      <div>
+        <h5 id="author">올린사람 : 모름</h5>
+        <hr>
+        <h5 class="title">로딩중...</h5>
+        <p class="date">날짜 로딩중</p>
+        <p class="price">가격 로딩중</p>
+        
+        <div class="mt-4">
+            <button class="btn btn-outline-secondary me-2" id="edit">수정</button>      
+            <button class="btn btn-outline-success" id="chat">채팅</button>
+        </div>
+      </div>
+    </div>  
+
+    <script>
+      const db = firebase.firestore();
+      
+      var 판매자uid; 
+      var 상품명;
+
+      // 1. 로그인 상태 감지
+      firebase.auth().onAuthStateChanged((user) => {
+        if (user) {
+          var 닉네임 = user.displayName || '회원';
+          $('#userName').html(닉네임 + '님');
+          $('#login').hide();
+          $('#logout').show();
+        } else {
+          $('#userName').html('');
+          $('#login').show();
+          $('#logout').hide();
+        }
+      });
+
+      // 2. 로그아웃
+      $('#logout').click(function(){
+        firebase.auth().signOut().then(() => {
+           alert("로그아웃 되었습니다.");
+           window.location.href = 'index.html';
+        });
+      });
+
+      // 3. 상품 정보 불러오기
+      var 쿼리스트링 = new URLSearchParams(window.location.search); 
+      var id = 쿼리스트링.get('id');
+
+      if (id) {
+          db.collection('product').doc(id).get().then((result)=>{
+            if(result.exists){
+                const data = result.data();
+                
+                판매자uid = data.uid;
+                상품명 = data.제목;
+                
+                $('.title').html(data.제목);
+                $('.price').html(data.가격 + '원');
+                
+                if(data.날짜){
+                    var date = data.날짜.toDate().toLocaleDateString();
+                    $('.date').html(date);
+                }
+                
+                if(data.imageURL) {
+                    $('.detail-pic').css('background-image', `url('${data.imageURL}')`);
+                }
+
+                if(data.작성자이름){
+                    $('#author').html(`올린사람 : ${data.작성자이름}`);
+                }
+            } else {
+                $('.container').html('<h4>존재하지 않는 상품입니다.</h4>');
+            }
+          }).catch((err)=>{
+             console.log("에러 발생:", err);
+          });
+      } else {
+          $('.container').html('<h4>잘못된 접근입니다.</h4>');
+      }
+
+      // 4. 수정 버튼
+      $('#edit').click(function(){
+        if(id) {
+            window.location.href = 'edit.html?id=' + id;
+        }
+      })
+      
+      // 5. 채팅 버튼
+      $('#chat').click(function(){
+        
+        var user = firebase.auth().currentUser;
+
+        if (!user) {
+            alert("로그인이 필요한 기능입니다.");
+            return;
+        }
+
+        if (user.uid === 판매자uid) {
+            alert("본인이 올린 상품입니다.");
+            return;
+        }
+        
+        // 상품명이 로딩되지 않았을 때 대비
+        if (!상품명 || !판매자uid) {
+            alert("상품 정보를 불러오는 중입니다. 잠시 후 다시 시도해주세요.");
+            return;
+        }
+
+        var 데이터 = { 
+            who : [user.uid, 판매자uid],   
+            product : 상품명,
+            date : new Date()
+        }
+        
+        db.collection('chatroom').add(데이터).then((result) => {
+            console.log("채팅방 생성 성공");
+            if(confirm("채팅방이 개설되었습니다. 이동하시겠습니까?")) {
+                window.location.href = 'chat.html?id=' + result.id;
+            }
+        }).catch((err) => {
+            console.log("실패:", err);
+            // Firestore 규칙 문제일 경우 알림
+            alert("채팅방 개설 실패: 권한이 없거나 오류가 발생했습니다.");
+        })
+      })
+    </script>
+  </body>
+</html>
