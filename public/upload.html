@@ -124,7 +124,7 @@
                 날짜: new Date(),
                 imageURL: downloadURL,
                 uid: JSON.parse(localStorage.getItem('user')).uid,
-                작성자이름: JSON.parse(localStorage.getItem('user')).displayName, // ★ 수정됨: '이름' -> '작성자이름' (detail.html과 통일)
+                작성자이름: JSON.parse(localStorage.getItem('user')).displayName, //'이름' -> '작성자이름' (detail.html과 통일)
               };
 
               db.collection("product").add(저장할거)
